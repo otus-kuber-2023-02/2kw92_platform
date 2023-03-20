@@ -464,12 +464,7 @@ spec:
 ```
 root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl apply -f ipaddresspool.yaml
 ipaddresspool.metallb.io/first-pool created
-root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl ger svc
-error: unknown command "ger" for "kubectl"
 
-Did you mean this?
-        set
-        get
 root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl get svc
 NAME         TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
 kubernetes   ClusterIP      10.96.0.1      <none>          443/TCP        9m47s
