@@ -229,3 +229,140 @@ web-65c66dcb5f-8mtdh   1/1     Terminating   0          4m38s
 web-65c66dcb5f-stsv9   1/1     Running       0          4m38s
 ```
 Старые поды удаляются, только после того как новые перешли в активное состояние.
+
+
+##### Создание Service | ClusterIP
+
+Cоздадим манифест для нашего сервиса [web-pod.yaml](/kubernetes-networks/web-svc-cip.yaml) и применим его:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# kubectl apply -f web-svc-cip.yaml
+service/web-svc-cip created
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# kubectl get svc
+NAME          TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
+kubernetes    ClusterIP   10.96.0.1     <none>        443/TCP   118m
+web-svc-cip   ClusterIP   10.96.42.21   <none>        80/TCP    5s
+```
+
+Подключимся к ВМ Minikube (команда minikube ssh и затем sudo-i ):
+Сделайте `curl http://10.96.42.21/index.html` - работает!
+Сделайте `ping 10.96.42.21` - пинга нет
+Сделайте `arp -an , ip addr show` - нигде нет ClusterIP
+Сделайте `iptables --list -nv -t nat` - вот где наш кластерный IP!
+
+
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# minikube ssh
+
+docker@minikube:~$ curl http://10.96.42.21/index.html
+<html>
+<head>
+<title>       </title>
+<style type="text/css">
+<!--
+h1      {text-align:center;
+        font-family:Arial, Helvetica, Sans-Serif;
+        }
+
+p       {text-indent:20px;
+        }
+-->
+</style>
+</head>
+<body bgcolor = "#ffffcc" text = "#000000">
+<h1>Vpered Loko!!!</h1>
+
+</body>
+
+
+docker@minikube:~$ ping 10.96.42.21
+PING 10.96.42.21 (10.96.42.21) 56(84) bytes of data.
+^Z
+[1]+  Stopped                 ping 10.96.42.21
+
+root@minikube:~# iptables --list -nv -t nat | grep 10.96.42.21
+    1    60 KUBE-SVC-6CZTMAROCN3AQODZ  tcp  --  *      *       0.0.0.0/0            10.96.42.21          /* default/web-svc-cip cluster IP */ tcp dpt:80
+    1    60 KUBE-MARK-MASQ  tcp  --  *      *      !10.244.0.0/16        10.96.42.21          /* default/web-svc-cip cluster IP */ tcp dpt:80
+```
+
+##### Включение IPVS
+
+Включим IPVS для kube-proxy , исправив ConfigMap (конфигурация Pod, хранящаяся в кластере).
+В  файле конфигурации kube-proxy правим параметры:
+```
+
+```
+ ipvs:
+   strictARP: true
+ mode: "ipvs"
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# kubectl --namespace kube-system edit configmaps kube-proxy
+configmap/kube-proxy edited
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# kubectl --namespace kube-system delete pod --selector='k8s-app=kube-proxy'
+pod "kube-proxy-dptrx" deleted
+```
+
+Теперь нужно почистить мусор:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks/kubernetes-networks# kubectl --namespace kube-system exec kube-proxy-nstqp -it sh
+kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
+kube-proxy --cleanup
+I0320 12:01:00.488605    1464 server.go:224] "Warning, all flags other than --config, --write-config-to, and --cleanup are deprecated, please begin using a config file ASAP"
+```
+Полностью очистим все правила iptables
+Создадим в ВМ с Minikube файл /tmp/iptables.cleanup:
+```
+*nat
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+COMMIT
+*filter
+COMMIT
+*mangle
+COMMIT
+```
+
+Теперь применим конфиг и проверим результат:
+```
+root@minikube:~# iptables-restore /tmp/iptables.cleanup
+root@minikube:~# iptables --list -nv -t nat
+Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+    0     0 KUBE-SERVICES  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes service portals */
+
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+
+Chain OUTPUT (policy ACCEPT 18 packets, 1080 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+   18  1080 KUBE-SERVICES  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes service portals */
+
+Chain POSTROUTING (policy ACCEPT 18 packets, 1080 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+   18  1080 KUBE-POSTROUTING  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes postrouting rules */
+    0     0 MASQUERADE  all  --  *      !docker0  172.17.0.0/16        0.0.0.0/0
+
+Chain KUBE-LOAD-BALANCER (0 references)
+ pkts bytes target     prot opt in     out     source               destination
+    0     0 KUBE-MARK-MASQ  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
+Chain KUBE-MARK-MASQ (2 references)
+ pkts bytes target     prot opt in     out     source               destination
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            MARK or 0x4000
+
+Chain KUBE-NODE-PORT (1 references)
+ pkts bytes target     prot opt in     out     source               destination
+
+Chain KUBE-POSTROUTING (1 references)
+ pkts bytes target     prot opt in     out     source               destination
+    0     0 MASQUERADE  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* Kubernetes endpoints dst ip:port, source ip for solving hairpin purpose */ match-set KUBE-LOOP-BACK dst,dst,src
+   18  1080 RETURN     all  --  *      *       0.0.0.0/0            0.0.0.0/0            mark match ! 0x4000/0x4000
+    0     0 MARK       all  --  *      *       0.0.0.0/0            0.0.0.0/0            MARK xor 0x4000
+    0     0 MASQUERADE  all  --  *      *       0.0.0.0/0            0.0.0.0/0            /* kubernetes service traffic requiring SNAT */ random-fully
+
+Chain KUBE-SERVICES (2 references)
+ pkts bytes target     prot opt in     out     source               destination
+    2   120 RETURN     all  --  *      *       127.0.0.0/8          0.0.0.0/0
+    0     0 KUBE-MARK-MASQ  all  --  *      *      !10.244.0.0/16        0.0.0.0/0            /* Kubernetes service cluster ip + port for masquerade purpose */ match-set KUBE-CLUSTER-IP dst,dst
+    8   480 KUBE-NODE-PORT  all  --  *      *       0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
+    0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set KUBE-CLUSTER-IP dst,dst
+```
+
