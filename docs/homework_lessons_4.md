@@ -415,37 +415,21 @@ deployment.apps/controller created
 daemonset.apps/speaker created
 validatingwebhookconfiguration.admissionregistration.k8s.io/metallb-webhook-configuration configured
 root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl --namespace metallb-system get all
-NAME                              READY   STATUS              RESTARTS   AGE
-pod/controller-54dbb75479-lxr68   0/1     ContainerCreating   0          8s
-pod/speaker-5cfbl                 0/1     ContainerCreating   0          7s
+NAME                              READY   STATUS    RESTARTS   AGE
+pod/controller-54dbb75479-lxr68   1/1     Running   0          63s
+pod/speaker-5cfbl                 1/1     Running   0          62s
 
 NAME                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
-service/webhook-service   ClusterIP   10.105.253.169   <none>        443/TCP   8s
+service/webhook-service   ClusterIP   10.105.253.169   <none>        443/TCP   63s
 
 NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
-daemonset.apps/speaker   1         1         0       1            0           kubernetes.io/os=linux   8s
+daemonset.apps/speaker   1         1         1       1            1           kubernetes.io/os=linux   63s
 
 NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/controller   0/1     1            0           8s
+deployment.apps/controller   1/1     1            1           63s
 
 NAME                                    DESIRED   CURRENT   READY   AGE
-replicaset.apps/controller-54dbb75479   1         1         0       8s
-root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl --namespace metallb-system get all
-NAME                              READY   STATUS              RESTARTS   AGE
-pod/controller-54dbb75479-lxr68   0/1     ContainerCreating   0          14s
-pod/speaker-5cfbl                 0/1     ContainerCreating   0          13s
-
-NAME                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
-service/webhook-service   ClusterIP   10.105.253.169   <none>        443/TCP   14s
-
-NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
-daemonset.apps/speaker   1         1         0       1            0           kubernetes.io/os=linux   14s
-
-NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/controller   0/1     1            0           14s
-
-NAME                                    DESIRED   CURRENT   READY   AGE
-replicaset.apps/controller-54dbb75479   1         1         0       14s
+replicaset.apps/controller-54dbb75479   1         1         1       63s
 ```
 Видим что все ок поднялось и работает.
 
