@@ -448,3 +448,30 @@ web-svc-lb   LoadBalancer   10.105.82.67   <pending>     80:30566/TCP   11m
 ```
 
 Вопрос почему так происходит, все сделано по инструкции из д.з
+
+Заработает только после создания объекта 
+```
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: first-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.1.240-192.168.1.250
+```
+И его применения:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl apply -f ipaddresspool.yaml
+ipaddresspool.metallb.io/first-pool created
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl ger svc
+error: unknown command "ger" for "kubectl"
+
+Did you mean this?
+        set
+        get
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl get svc
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
+kubernetes   ClusterIP      10.96.0.1      <none>          443/TCP        9m47s
+web-svc-lb   LoadBalancer   10.99.54.186   192.168.1.240   80:31556/TCP   5m15s
+```
