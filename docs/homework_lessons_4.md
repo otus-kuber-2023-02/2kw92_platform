@@ -366,3 +366,101 @@ Chain KUBE-SERVICES (2 references)
     0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            match-set KUBE-CLUSTER-IP dst,dst
 ```
 
+Далее поставим ipvadm на машине с minikube и проверим наш кластерный Ip
+
+```
+root@minikube:~# ipvsadm --list -n
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+TCP  10.96.0.1:443 rr
+  -> 192.168.49.2:8443            Masq    1      2          0
+TCP  10.96.0.10:53 rr
+  -> 10.244.0.9:53                Masq    1      0          0
+TCP  10.96.0.10:9153 rr
+  -> 10.244.0.9:9153              Masq    1      0          0
+TCP  10.103.73.43:80 rr
+  -> 10.244.0.7:8000              Masq    1      0          0
+  -> 10.244.0.8:8000              Masq    1      0          0
+  -> 10.244.0.10:8000             Masq    1      0          0
+UDP  10.96.0.10:53 rr
+  -> 10.244.0.9:53                Masq    1      0          0
+```
+
+##### Установка MetalLB
+Так как версия MetalLB указанная в д/з устарела ставлю поновее
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+namespace/metallb-system created
+customresourcedefinition.apiextensions.k8s.io/addresspools.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/bfdprofiles.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/bgpadvertisements.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/bgppeers.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/communities.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/ipaddresspools.metallb.io configured
+customresourcedefinition.apiextensions.k8s.io/l2advertisements.metallb.io configured
+serviceaccount/controller created
+serviceaccount/speaker created
+role.rbac.authorization.k8s.io/controller created
+role.rbac.authorization.k8s.io/pod-lister created
+clusterrole.rbac.authorization.k8s.io/metallb-system:controller configured
+clusterrole.rbac.authorization.k8s.io/metallb-system:speaker configured
+rolebinding.rbac.authorization.k8s.io/controller created
+rolebinding.rbac.authorization.k8s.io/pod-lister created
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:controller unchanged
+clusterrolebinding.rbac.authorization.k8s.io/metallb-system:speaker unchanged
+secret/webhook-server-cert created
+service/webhook-service created
+deployment.apps/controller created
+daemonset.apps/speaker created
+validatingwebhookconfiguration.admissionregistration.k8s.io/metallb-webhook-configuration configured
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl --namespace metallb-system get all
+NAME                              READY   STATUS              RESTARTS   AGE
+pod/controller-54dbb75479-lxr68   0/1     ContainerCreating   0          8s
+pod/speaker-5cfbl                 0/1     ContainerCreating   0          7s
+
+NAME                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/webhook-service   ClusterIP   10.105.253.169   <none>        443/TCP   8s
+
+NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+daemonset.apps/speaker   1         1         0       1            0           kubernetes.io/os=linux   8s
+
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/controller   0/1     1            0           8s
+
+NAME                                    DESIRED   CURRENT   READY   AGE
+replicaset.apps/controller-54dbb75479   1         1         0       8s
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl --namespace metallb-system get all
+NAME                              READY   STATUS              RESTARTS   AGE
+pod/controller-54dbb75479-lxr68   0/1     ContainerCreating   0          14s
+pod/speaker-5cfbl                 0/1     ContainerCreating   0          13s
+
+NAME                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/webhook-service   ClusterIP   10.105.253.169   <none>        443/TCP   14s
+
+NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+daemonset.apps/speaker   1         1         0       1            0           kubernetes.io/os=linux   14s
+
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/controller   0/1     1            0           14s
+
+NAME                                    DESIRED   CURRENT   READY   AGE
+replicaset.apps/controller-54dbb75479   1         1         0       14s
+```
+Видим что все ок поднялось и работает.
+
+Создайте манифест [metallb-config.yaml](/kubernetes-networks/metallb-config.yaml) и применим его:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl apply -f metallb-config.yaml
+configmap/config created
+```
+
+Далее применяем [web-svc-lb.yaml](/kubernetes-networks/web-svc-lb.yaml).
+И Видим что `EXTERNAL-IP` в состоянии `pendind`
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl get svc web-svc-lb
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+web-svc-lb   LoadBalancer   10.105.82.67   <pending>     80:30566/TCP   11m
+```
+
+Вопрос почему так происходит, все сделано по инструкции из д.з
