@@ -1,6 +1,6 @@
 ### ДЗ по теме Volumes, Storages,StatefulSet
 
-Применим конфигурацию [minio-statefulset.yaml](/kubernetes-networks/minio-statefulset.yaml) и проверим что все поднялось
+Применим конфигурацию [minio-statefulset.yaml](/kubernetes-volumes/minio-statefulset.yaml) и проверим что все поднялось
 
 ```
 root@ubuntu-otus:~/otus_kuber/lessons-5-kubernetes-volumes# kubectl get pod minio-0
@@ -14,13 +14,13 @@ NAME                                       CAPACITY   ACCESS MODES   RECLAIM POL
 pvc-33e67a53-86e3-41b4-8630-fa63b5ff33d3   10Gi       RWO            Delete           Bound    default/data-minio-0   standard                56s
 ```
 
-Для того, чтобы наш StatefulSet был доступен изнутри кластера,создадим Headless Service [minio-headless-service.yaml](/kubernetes-networks/minio-headless-service.yaml) и применим его
+Для того, чтобы наш StatefulSet был доступен изнутри кластера,создадим Headless Service [minio-headless-service.yaml](/kubernetes-volumes/minio-headless-service.yaml) и применим его
 ```
 root@ubuntu-otus:~/otus_kuber/lessons-5-kubernetes-volumes# kubectl apply -f minio-headless-service.yaml
 service/minio created
 ``` 
 
-Создадим ingress для нашего сервиса minio  [ingress-minio.yaml](/kubernetes-networks/ingress-minio) и применим его, после чего провеим что все доступно
+Создадим ingress для нашего сервиса minio  [ingress-minio.yaml](/kubernetes-volumes/ingress-minio) и применим его, после чего провеим что все доступно
 ```
 root@ubuntu-otus:~/otus_kuber/lessons-5-kubernetes-volumes# curl http://192.168.49.2/minio
 <?xml version="1.0" encoding="UTF-8"?>
@@ -30,7 +30,7 @@ root@ubuntu-otus:~/otus_kuber/lessons-5-kubernetes-volumes# curl http://192.168.
 
 ## Задание со *
 
-Создадим секрет [minio-secret.yaml](/kubernetes-networks/minio-secret.yaml) применим и поправим конфигруцию [minio-statefulset.yaml](/kubernetes-networks/minio-statefulset.yaml)   
+Создадим секрет [minio-secret.yaml](/kubernetes-volumes/minio-secret.yaml) применим и поправим конфигруцию [minio-statefulset.yaml](/kubernetes-volumes/minio-statefulset.yaml)   
 чтобы данные для подключения использовались из секрета
 ```
     spec:
