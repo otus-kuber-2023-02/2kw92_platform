@@ -470,3 +470,129 @@ NAME         TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)        AGE
 kubernetes   ClusterIP      10.96.0.1      <none>          443/TCP        9m47s
 web-svc-lb   LoadBalancer   10.99.54.186   192.168.1.240   80:31556/TCP   5m15s
 ```
+
+Добавим маршрут в нашей ОС и проверим доступ:
+```
+root@ubuntu-otus:~# ip route add 192.168.0.0/16 via $(minikube ip)
+root@ubuntu-otus:~# curl http://192.168.1.240/index.html
+<html>
+<head>
+<title>       </title>
+<style type="text/css">
+<!--
+h1      {text-align:center;
+        font-family:Arial, Helvetica, Sans-Serif;
+        }
+
+p       {text-indent:20px;
+        }
+-->
+</style>
+</head>
+<body bgcolor = "#ffffcc" text = "#000000">
+<h1>Vpered Loko!!!</h1>
+
+</body>
+</html>
+```
+Как видим все успешно отработало
+
+### Создание Ingress
+
+```
+root@ubuntu-otus:~# kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.6.4/deploy/static/provider/cloud/deploy.yaml
+namespace/ingress-nginx created
+serviceaccount/ingress-nginx created
+serviceaccount/ingress-nginx-admission created
+role.rbac.authorization.k8s.io/ingress-nginx created
+role.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx created
+clusterrole.rbac.authorization.k8s.io/ingress-nginx-admission created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx created
+rolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx created
+clusterrolebinding.rbac.authorization.k8s.io/ingress-nginx-admission created
+configmap/ingress-nginx-controller created
+service/ingress-nginx-controller created
+service/ingress-nginx-controller-admission created
+deployment.apps/ingress-nginx-controller created
+job.batch/ingress-nginx-admission-create created
+job.batch/ingress-nginx-admission-patch created
+ingressclass.networking.k8s.io/nginx created
+validatingwebhookconfiguration.admissionregistration.k8s.io/ingress-nginx-admission created
+```
+
+Создадим файл [nginx-lb.yaml](/kubernetes-networks/nginx-lb.yaml) c конфигурацией LoadBalancer - сервиса применем его,посмотри external_ip и сделаем curl
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl apply -f nginx-lb.yaml
+service/ingress-nginx created
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl get svc -n ingress-nginx
+NAME                                 TYPE           CLUSTER-IP       EXTERNAL-IP     PORT(S)                      AGE
+ingress-nginx                        LoadBalancer   10.105.76.183    192.168.1.241   80:31324/TCP,443:32343/TCP   7m35s
+ingress-nginx-controller             LoadBalancer   10.104.177.109   192.168.1.240   80:32180/TCP,443:30685/TCP   10m
+ingress-nginx-controller-admission   ClusterIP      10.96.156.167    <none>          443/TCP                      10m
+
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# curl http://192.168.1.241
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx</center>
+</body>
+</html>
+```
+Если видим страничку 404 от OpenResty (или Nginx) - значит работает
+
+Теперь создадим  [web-svc-headless.yaml](/kubernetes-networks/web-svc-headless.yaml) применим его и посомтрим на CLUSTER-IP, который для него не назначен
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl get svc web-svc
+NAME      TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+web-svc   ClusterIP   None         <none>        80/TCP    14s
+```
+Теперь настроим наш ingress-прокси, создав манифест с ресурсом Ingress [web-ingress.yaml](/kubernetes-networks/web-ingress.yaml)  
+Применеям манифест и проверяем, что корректно заполнены Address и Backends
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# kubectl describe ingress/web
+Name:             web
+Labels:           <none>
+Namespace:        default
+Address:          192.168.49.2
+Ingress Class:    <none>
+Default backend:  <default>
+Rules:
+  Host        Path  Backends
+  ----        ----  --------
+  myweb.otus
+              /web   web-svc:8000 (10.244.0.11:8000,10.244.0.12:8000,10.244.0.14:8000)
+Annotations:  nginx.ingress.kubernetes.io/rewrite-target: /$1
+Events:
+  Type    Reason  Age                    From                      Message
+  ----    ------  ----                   ----                      -------
+  Normal  Sync    3m56s (x2 over 4m38s)  nginx-ingress-controller  Scheduled for sync
+```
+
+И теперь проверяем:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-4-kubernetes-networks# curl http://192.168.49.2/web/index.html
+<html>
+<head>
+<title>       </title>
+<style type="text/css">
+<!--
+h1      {text-align:center;
+        font-family:Arial, Helvetica, Sans-Serif;
+        }
+
+p       {text-indent:20px;
+        }
+-->
+</style>
+</head>
+<body bgcolor = "#ffffcc" text = "#000000">
+<h1>Vpered Loko!!!</h1>
+
+</body>
+</html>
+```
+
+Видим что все ок отработало
