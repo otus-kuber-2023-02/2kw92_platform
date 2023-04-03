@@ -46,7 +46,7 @@ NAME            NAMESPACE       REVISION        UPDATED                         
 nginx-ingress   nginx-ingress   1               2023-04-03 10:56:29.8064023 +0300 MSK   deployed        nginx-ingress-0.17.0    3.1.0
 ```
 
-##### cert-manager
+#### cert-manager
 Ставим cert-manager
 ```
 PS C:\Users\kurochkin.k> helm repo add jetstack https://charts.jetstack.io
@@ -165,3 +165,30 @@ Get the ChartMuseum URL by running:
 
 Проверяем с помощью Lens все ли окей:
 ![Lens](pic/1.PNG)
+
+Видим что LB балансирует нас нас по адресу сервиса nginx-ingress-controller, так что все ок.
+
+
+#### harbor
+
+Далее ставим harbor и пробрасываем для него ingress [values.yaml](harbor/values.yaml)
+Но валидный сертфиикат не получилось получить [ClusterIssuer.yaml](cert-manager/ClusterIssuer.yaml)
+Использовались параметры удоствоеряющего сервера 
+```
+https://acme-staging-v02.api.letsencrypt.org/directory:
+```
+Поучали такую картину:
+![Pic2](pic/2.PNG)
+
+Использовались параметры удоствоеряющего сервера 
+```
+https://acme-v02.api.letsencrypt.org/directory:
+```
+Поучали такую картину:
+![Pic3](pic/3.PNG)
+
+Видим, что сертификат подтягивается, но почему он не валидный остается вопросом
+
+А в целом harbor работоспособен:
+![Pic4](pic/4.PNG)
+
