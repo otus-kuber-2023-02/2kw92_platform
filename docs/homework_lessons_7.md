@@ -164,4 +164,4 @@ Get the ChartMuseum URL by running:
 ```
 
 Проверяем с помощью Lens все ли окей:
-(/pic/1.PNG)
+(pic/1.PNG)
