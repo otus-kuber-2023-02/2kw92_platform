@@ -1,4 +1,4 @@
-### ДЗ по теме Шаблонизация манифестов Kubernetes
+## ДЗ по теме Шаблонизация манифестов Kubernetes
 
 ДЗ будет сделано на кластре kubernetes в яндекс обалке.
 
@@ -46,7 +46,8 @@ NAME            NAMESPACE       REVISION        UPDATED                         
 nginx-ingress   nginx-ingress   1               2023-04-03 10:56:29.8064023 +0300 MSK   deployed        nginx-ingress-0.17.0    3.1.0
 ```
 
-#### cert-manager
+### cert-manager
+
 Ставим cert-manager
 ```
 PS C:\Users\kurochkin.k> helm repo add jetstack https://charts.jetstack.io
@@ -169,7 +170,7 @@ Get the ChartMuseum URL by running:
 Видим что LB балансирует нас нас по адресу сервиса nginx-ingress-controller, так что все ок.
 
 
-#### harbor
+### harbor
 
 Далее ставим harbor и пробрасываем для него ingress [values.yaml](harbor/values.yaml)
 Но валидный сертфиикат не получилось получить [ClusterIssuer.yaml](cert-manager/ClusterIssuer.yaml)
@@ -191,4 +192,90 @@ https://acme-v02.api.letsencrypt.org/directory:
 
 А в целом harbor работоспособен:
 ![Pic4](pic/4.PNG)
+
+### Создаем свой helm chart
+
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> helm create hipster-shop
+Creating hipster-shop
+```
+
+Установим наше приложение из одного 
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> helm upgrade --install hipster-shop hipster-shop --namespace hipster-shop
+Release "hipster-shop" does not exist. Installing it now.
+NAME: hipster-shop
+LAST DEPLOYED: Mon Apr  3 17:55:25 2023
+NAMESPACE: hipster-shop
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+После этого произведем манипуляции по шаблонизации нашего приложения и обновим зависимости:
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> helm dep update hipster-shop
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "chartmuseum" chart repository
+...Successfully got an update from the "harbor" chart repository
+...Successfully got an update from the "jetstack" chart repository
+...Successfully got an update from the "nginx-stable" chart repository
+...Successfully got an update from the "bitnami" chart repository
+...Successfully got an update from the "stable" chart repository
+Update Complete. ⎈Happy Helming!⎈
+Saving 1 charts
+Deleting outdated charts
+```
+В директории kubernetes-templating/hipster-shop/charts появился архив frontend-0.1.0.tgz содержащий chart frontend определенной версии и добавленный в chart hipster-shop как зависимость.
+
+После этого обновляем helm chart hipster-shop
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> helm upgrade --install hipster-shop hipster-shop --namespace hipster-shop
+Release "hipster-shop" does not exist. Installing it now.
+NAME: hipster-shop
+LAST DEPLOYED: Tue Apr  4 10:45:01 2023
+NAMESPACE: hipster-shop
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+Вес успешно обновилось. Проверяем статус подов:
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl.exe get pods -n hipster-shop
+NAME                                     READY   STATUS         RESTARTS       AGE
+cartservice-65cf6686f9-76pfw             1/1     Running        1 (104s ago)   112s
+checkoutservice-5b46dfd9bb-m8bf8         1/1     Running        0              113s
+currencyservice-5fbf6cfcc6-txnj4         1/1     Running        0              113s
+emailservice-86bfdd6b48-6cvff            1/1     Running        0              113s
+frontend-69c6ff75c7-bzrxd                1/1     Running        0              113s
+paymentservice-7f5f948b86-dn4xz          1/1     Running        0              113s
+productcatalogservice-7bf75c85b8-wwnww   1/1     Running        0              113s
+recommendationservice-5bcf9f88c6-n924s   1/1     Running        0              113s
+redis-cart-78746d49dc-vdtlj              1/1     Running        0              113s
+shippingservice-6c7b98898b-rglct         1/1     Running        0              113s
+```
+
+Видим что frontend успещно запущен.
+
+Изменим параметры с помощью ключа --set
+
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> helm upgrade --install hipster-shop hipster-shop --namespace hipster-shop --set frontend.service.NodePort=31234
+Release "hipster-shop" has been upgraded. Happy Helming!
+NAME: hipster-shop
+LAST DEPLOYED: Tue Apr  4 11:05:06 2023
+NAMESPACE: hipster-shop
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl.exe --namespace hipster-shop get svc frontend
+NAME       TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+frontend   NodePort   10.96.237.105   <none>        80:31234/TCP   8m50s
+```
+Видим что изменения прошли успешно.
+
+
+### Kubecfg
+
 
