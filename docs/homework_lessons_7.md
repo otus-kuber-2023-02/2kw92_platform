@@ -281,30 +281,38 @@ frontend   NodePort   10.96.237.105   <none>        80:31234/TCP   8m50s
 Потсавим kubecfg и проверим корректность установки:
 ```
 root@ubuntu-otus:~# kubecfg show
-                           Clusters
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name                                ┃ Server                ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
-│ yc-managed-k8s-catc78t2lb9qmb6u1tov │ https://158.160.9.220 │
-│ yc-managed-k8s-catgfqv77vr7lauhgq8i │ https://51.250.23.44  │
-│ yc-managed-k8s-catkcioqk191q7osvvp1 │ https://158.160.1.202 │
-└─────────────────────────────────────┴───────────────────────┘
-                                               Contexts
-┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name        ┃ Cluster                             ┃ Namespace ┃ User                                ┃
-┡━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ yc-kuber-yc │ yc-managed-k8s-catkcioqk191q7osvvp1 │           │ yc-managed-k8s-catkcioqk191q7osvvp1 │
-└─────────────┴─────────────────────────────────────┴───────────┴─────────────────────────────────────┘
-                              Users
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┓
-┃ Name                                ┃ Cert       ┃ Key        ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━┩
-│ yc-managed-k8s-catc78t2lb9qmb6u1tov │ -- data -- │ -- data -- │
-│ yc-managed-k8s-catgfqv77vr7lauhgq8i │ -- data -- │ -- data -- │
-│ yc-managed-k8s-catkcioqk191q7osvvp1 │ -- data -- │ -- data -- │
-└─────────────────────────────────────┴────────────┴────────────┘
-Current Context: yc-kuber-yc
+root@ubuntu-otus:~# kubecfg version
+kubecfg version: v0.29.2
+jsonnet version: v0.19.1
+client-go version: v0.0.0-master+$Format:%H$
 ```
 Результаты описаны в yaml-файлах в директории kubecfg
 
-### 
+### Kustomization
+
+Подготавливаем два окружения и деплоим их:
+
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl apply -k .\kustomize\override\hipster-shop\
+service/stage-recommendationservice created
+deployment.apps/stage-recommendationservice created
+
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl.exe create ns hipster-shop-prod
+namespace/hipster-shop-prod created
+
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl apply -k .\kustomize\override\hipster-shop-prod\
+service/prod-recommendationservice created
+deployment.apps/prod-recommendationservice created
+```
+
+И проверяем:
+```
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl.exe get pod -n hipster-shop-prod
+NAME                                          READY   STATUS    RESTARTS   AGE
+prod-recommendationservice-6759b55956-dcx49   1/1     Running   0          37s
+PS C:\Users\kurochkin.k\Documents\repository_otus\2kw92_platform\kubernetes-templating> kubectl.exe get svc -n hipster-shop-prod
+NAME                         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+prod-recommendationservice   ClusterIP   10.96.162.132   <none>        8080/TCP   56s
+```
+
+Видим что все ок
