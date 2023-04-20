@@ -1,0 +1,1 @@
+## ДЗ по теме Операторы, CustomResourceDefinition

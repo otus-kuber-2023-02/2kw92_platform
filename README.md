@@ -11,3 +11,6 @@
 
 ### * homework lessons 7
 Описание дз [kubernetes-templating](/docs/homework_lessons_7.md)
+
+### * homework lessons 8
+Описание дз [kubernetes-templating](/docs/homework_lessons_8.md)
