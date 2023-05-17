@@ -214,3 +214,55 @@ ingress-nginx-controller-7754d45dfc-m5x5x   1/1     Running   0          11m   1
 ingress-nginx-controller-7754d45dfc-nnhm7   1/1     Running   0          10m   10.112.129.9    terraform-vm-3   <none>           <none>
 ingress-nginx-controller-7754d45dfc-x9hzc   1/1     Running   0          10m   10.112.131.9    terraform-vm-4   <none>           <none>
 ```
+
+После этого ставим kibana и ingress для нее:
+```
+root@ubuntu-otus:~/otus_kuber/lessons-9-kubernetes-logging# helm upgrade --install kibana helm-charts-main/kibana -n observability -f  helm-charts-main/kibana/kibana.values.yaml
+Release "kibana" does not exist. Installing it now.
+NAME: kibana
+LAST DEPLOYED: Thu May  4 08:52:23 2023
+NAMESPACE: observability
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+1. Watch all containers come up.
+  $ kubectl get pods --namespace=observability -l release=kibana -w
+2. Retrieve the elastic user's password.
+  $ kubectl get secrets --namespace=observability elasticsearch-master-credentials -ojsonpath='{.data.password}' | base64 -d
+3. Retrieve the kibana service account token.
+  $ kubectl get secrets --namespace=observability kibana-kibana-es-token -ojsonpath='{.data.token}' | base64 -d
+```
+
+Пример файла для ingress
+
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  namespace: observability
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+    - host:
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: kibana-kibana
+              port:
+                number: 5601
+```
+
+```
+root@ubuntu-otus:~/otus_kuber/lessons-9-kubernetes-logging# kubectl apply -f ingress.yaml
+ingress.networking.k8s.io/minimal-ingress configured
+```
+
+И проверяем что все доступно и обнаруживаем что при создании index pattern нету данных:
+
+![kibana](pic/5.PNG)
